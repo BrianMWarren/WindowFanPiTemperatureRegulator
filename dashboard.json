@@ -1,0 +1,50 @@
+{
+    "version": 1,
+    "allow_edit": true,
+    "plugins": [
+        "/plugins/all",
+        "https://github.com/onlinux/freeboard-dynamic-highcharts-plugin/raw/master/plugins_highcharts.min.js"
+    ],
+    "panes": [
+        {
+            "width": 1,
+            "row": {
+                "3": 1
+            },
+            "col": {
+                "3": 1
+            },
+            "col_width": 3,
+            "widgets": [
+                {
+                    "type": "plugin59efc1b05333e91109002309",
+                    "settings": {
+                        "type": "Line",
+                        "data": "datasources[\"House_Weather_Array\"]",
+                        "target": "datasources[\"House_Weather_Array\"][0][\"content\"][\"Outside_Temp/"],
+                    "timeframe": "Day",
+                    "size": "Large",
+                    "include_axis": false,
+                    "width": 900,
+                    "height": 600
+                }
+            }
+        ]
+    }
+],
+"datasources": [
+    {
+        "name": "House_Weather_Array",
+        "type": "plugin5823c8161f6d6a2948312f68",
+        "settings": {
+            "session_token": "eyJ1c2VybmFtZSI6Imx1Z251dHo5OUBnbWFpbC5jb20iLCJmaXJzdE5hbWUiOiJCcmlhbiIsImxhc3ROYW1lIjoiV2FycmVuIiwicm9sZSI6ImFkbWluIiwibGFzdExvZ2luIjoxNTk0Njg4OTc0Nzk3LCJhY2NvdW50IjpbeyJuYW1lIjoiU1VQRVJTUEVDSUFMTk9ORU5PVEhJTkdOT1RBTk9SR0lOSVpBVElPTiIsInJvbGUiOiJhZG1pbiJ9XSwiY29tcGFueSI6IlNVUEVSU1BFQ0lBTE5PTkVOT1RISU5HTk9UQU5PUkdJTklaQVRJT04iLCJ2YWxpZGl0eSI6MTU5NDY4OTAxODI0OH0=.3b76811fbb592a3167f076ef2dd790eed9d7dfb5fc1e3e4f89091604586a938a",
+            "return_object_type": "array",
+            "return_all": true,
+            "thing_name": "409HouseWeather"
+        }
+    }
+],
+"columns": 3,
+"pane_header_bg_color": null,
+"pane_bg_color": null
+}
