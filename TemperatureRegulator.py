@@ -43,7 +43,7 @@ def GPIOSetup():
 
 def SendFanSignal(isOn):
     HOST = "192.168.1.31"
-    PORT = 6999        # The port used by the server
+    PORT = 6998        # The port used by the server
     isOnB = bytes(isOn, encoding="utf-8")
     try:
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
