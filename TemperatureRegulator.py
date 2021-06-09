@@ -22,10 +22,14 @@ GPIO.output(relayPin, GPIO.LOW)
 GPIO.output(powerPin, GPIO.HIGH)
 time.sleep(5)
 
+#const variables
+futureInterpolationTime = 30 * 60
+coldestInsideTemp = 66
+
 class globals():
     inside = ""
     outside = ""
-    coldestInsideTemp = 66
+    previousTemps = {}
 
 def PowerReset(e):
     print("Device error: ", e)
@@ -41,17 +45,32 @@ def GPIOSetup():
     globals.outside = adafruit_bme280.Adafruit_BME280_I2C(i2c, address=0x77)
     globals.inside = adafruit_bme280.Adafruit_BME280_I2C(i2c, address=0x76)
 
+def ResetVariables():
+    globals.previousTemps = {}
+
 def SendFanSignal(isOn):
-    HOST = "192.168.1.31"
+    HOST = "192.168.1.38"
     PORT = 6998        # The port used by the server
     isOnB = bytes(isOn, encoding="utf-8")
     try:
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
             s.connect((HOST, PORT))
             s.sendall(isOnB)
+            s.close()
             return "sent" + isOn
-    except ConnectionRefusedError:
+    except (ConnectionRefusedError, OSError) as e:
+        print("error in network: ", e)
         return "Network Error on remote pi"
+
+def LerpTemp(outTemp):
+    pastTime = list(globals.previousTemps.keys())[0]
+    timeDiff = time.time() - pastTime
+    pastTemp = globals.previousTemps[pastTime]
+    tempDiff = outTemp - pastTemp
+    multiFactor = futureInterpolationTime / timeDiff 
+    perdictedTemp = (tempDiff * multiFactor) + outTemp
+    return perdictedTemp
+        
 
 def TestTemperature():
     try:
@@ -59,30 +78,47 @@ def TestTemperature():
                 OutsideFTemperature = (globals.outside.temperature * (9/5)) + 32 # celcious to fahrenheit
                 insideFTemperature = (globals.inside.temperature * (9/5)) + 32 # celcious to fahrenheit
 
-                if(insideFTemperature > OutsideFTemperature and insideFTemperature > globals.coldestInsideTemp):
+                # prediction -----------------
+                if(len(globals.previousTemps) > 0):
+                    predictedOutsideTemp = LerpTemp(OutsideFTemperature)
+                else:
+                    predictedOutsideTemp = OutsideFTemperature
+
+                globals.previousTemps[time.time()] = OutsideFTemperature
+                if(len(globals.previousTemps) > 3):
+                    del globals.previousTemps[list(globals.previousTemps.keys())[0]]
+                # prediction -----------------
+
+                if(insideFTemperature > predictedOutsideTemp and insideFTemperature > coldestInsideTemp):
                     GPIO.output(relayPin, GPIO.LOW)
-                    print(SendFanSignal("ON"))
+                    # print(SendFanSignal("ON"))
                     fanOn = True
                 else:
                     GPIO.output(relayPin, GPIO.HIGH)
-                    print(SendFanSignal("OFF"))
+                    # print(SendFanSignal("OFF"))
                     fanOn = False
 
                 print("Inside : Temperature: %0.1fF, Humidity: %0.1f %%, Pressure: %0.1f hPa" % (insideFTemperature, globals.inside.humidity, globals.inside.pressure))
                 print("Outside: Temperature: %0.1fF, Humidity: %0.1f %%, Pressure: %0.1f hPa" % (OutsideFTemperature, globals.outside.humidity, globals.outside.pressure))
+                print("predicted outside temperature: %0.1f in: %d minutes" % (predictedOutsideTemp, futureInterpolationTime / 60))
+                print("________________________________________")
 
                 #send dweet.io and update on temperature status
-                dweetContent = {
-                    "Inside_Temp": round(insideFTemperature , 2),
-                    "Outside_Temp": round(OutsideFTemperature, 2),
-                    "Inside_Difference": round(insideFTemperature - OutsideFTemperature, 2),
-                    "Inside_Humidity": round(globals.inside.humidity, 1),
-                    "Outside_Humidity": round(globals.outside.humidity, 1),
-                    "Inside_Pressure": round(globals.inside.pressure, 1),
-                    "Outside_Pressure": round(globals.outside.pressure, 1),
-                    "Is_Fan_On": fanOn
-                }
+                # dweetContent = {
+                #     "Inside_Temp": round(insideFTemperature , 2),
+                #     "Outside_Temp": round(OutsideFTemperature, 2),
+                #     "Inside_Difference": round(insideFTemperature - OutsideFTemperature, 2),
+                #     "Inside_Humidity": round(globals.inside.humidity, 1),
+                #     "Outside_Humidity": round(globals.outside.humidity, 1),
+                #     "Inside_Pressure": round(globals.inside.pressure, 1),
+                #     "Outside_Pressure": round(globals.outside.pressure, 1),
+                #     "Is_Fan_On": fanOn
+                # }
+                #send dweet.io and update on temperature status
+                # URL = "https://dweet.io/dweet/for/409HouseWeather"
+                # r = requests.post(url = URL, params = dweetContent)
                 #load influx db
+
                 influxDBContent = [
                     {"measurement" : "Inside_Temp",
                     "fields":{
@@ -122,10 +158,7 @@ def TestTemperature():
                 # URL = "https://dweetpro.io:443/v2/dweets"
                 # r = requests.post(url = URL, headers = header, json = dweet)
 
-                #send dweet.io and update on temperature status
 
-                URL = "https://dweet.io/dweet/for/409HouseWeather"
-                r = requests.post(url = URL, params = dweetContent)
 
 
                 time.sleep(300)
@@ -133,6 +166,7 @@ def TestTemperature():
     except (OSError, ValueError) as e:
         PowerReset(e)
         GPIOSetup()
+        ResetVariables()
         TestTemperature()
     
     except KeyboardInterrupt:
