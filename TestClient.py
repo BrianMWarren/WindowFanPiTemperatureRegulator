@@ -1,7 +1,7 @@
 import socket
 import time
 
-HOST = socket.gethostbyname('192.168.1.31')
+HOST = socket.gethostbyname("192.168.1.5")
 print(HOST)
 # HOST = 'WINDOWPIREPEAT1'  # The server's hostname or IP address
 PORT = 6998        # The port used by the server

@@ -49,7 +49,7 @@ def ResetVariables():
     globals.previousTemps = {}
 
 def SendFanSignal(isOn):
-    HOST = "192.168.1.38"
+    HOST = "192.168.1.5"
     PORT = 6998        # The port used by the server
     isOnB = bytes(isOn, encoding="utf-8")
     try:
@@ -91,11 +91,11 @@ def TestTemperature():
 
                 if(insideFTemperature > predictedOutsideTemp and insideFTemperature > coldestInsideTemp):
                     GPIO.output(relayPin, GPIO.LOW)
-                    # print(SendFanSignal("ON"))
+                    print(SendFanSignal("ON"))
                     fanOn = True
                 else:
                     GPIO.output(relayPin, GPIO.HIGH)
-                    # print(SendFanSignal("OFF"))
+                    print(SendFanSignal("OFF"))
                     fanOn = False
 
                 print("Inside : Temperature: %0.1fF, Humidity: %0.1f %%, Pressure: %0.1f hPa" % (insideFTemperature, globals.inside.humidity, globals.inside.pressure))
@@ -166,7 +166,6 @@ def TestTemperature():
     except (OSError, ValueError) as e:
         PowerReset(e)
         GPIOSetup()
-        ResetVariables()
         TestTemperature()
     
     except KeyboardInterrupt:
