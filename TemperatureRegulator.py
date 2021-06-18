@@ -30,17 +30,22 @@ class globals():
     inside = ""
     outside = ""
     previousTemps = {}
-    OutsideFTemperature = 0
-    insideFTemperature = 0
 
-def PowerReset(e):
-    print("Device error: ", e)
+def PowerReset():
+    print("Device error: ")
     GPIO.output(powerPin, GPIO.LOW)
     print("Power to i2c devices OFF")
     time.sleep(10)
     GPIO.output(powerPin, GPIO.HIGH)
     print("Power to i2c decives ON")
     time.sleep(10)
+    TrySensorSetup()
+
+def TrySensorSetup():
+    try:
+        GPIOSetup()
+    except ValueError as e:
+        PowerReset()
 
 def GPIOSetup():
     i2c = busio.I2C(board.SCL, board.SDA)
@@ -73,35 +78,26 @@ def LerpTemp(outTemp):
     perdictedTemp = (tempDiff * multiFactor) + outTemp
     return perdictedTemp
 
-def ReadTemp():
-    if(isinstance(globals.outside, str)):
-        time.sleep(10)
-        print("no temp sensor found, trying again to find")
-        GPIOSetup()
-        TestTemperature()
-        return False
-    else:
-        globals.OutsideFTemperature = (globals.outside.temperature * (9/5)) + 32 # celcious to fahrenheit
-        globals.OutsideFTemperature = (globals.inside.temperature * (9/5)) + 32 # celcious to fahrenheit
-        return True
+
 
 def TestTemperature():
     try:
         while True:
-                if(not ReadTemp()):
-                    return  
+                OutsideFTemperature = (globals.outside.temperature * (9/5)) + 32 # celcious to fahrenheit
+                insideFTemperature = (globals.inside.temperature * (9/5)) + 32 # celcious to fahrenheit 
+
                 # prediction -----------------
                 if(len(globals.previousTemps) > 0):
-                    predictedOutsideTemp = LerpTemp(globals.OutsideFTemperature)
+                    predictedOutsideTemp = LerpTemp(OutsideFTemperature)
                 else:
-                    predictedOutsideTemp = globals.OutsideFTemperature
+                    predictedOutsideTemp = OutsideFTemperature
 
-                globals.previousTemps[time.time()] = globals.OutsideFTemperature
+                globals.previousTemps[time.time()] = OutsideFTemperature
                 if(len(globals.previousTemps) > 3):
                     del globals.previousTemps[list(globals.previousTemps.keys())[0]]
                 # prediction -----------------
 
-                if(globals.OutsideFTemperature > predictedOutsideTemp and globals.OutsideFTemperature > coldestInsideTemp):
+                if(insideFTemperature > predictedOutsideTemp and insideFTemperature > coldestInsideTemp):
                     GPIO.output(relayPin, GPIO.LOW)
                     print(SendFanSignal("ON"))
                     fanOn = True
@@ -110,16 +106,16 @@ def TestTemperature():
                     print(SendFanSignal("OFF"))
                     fanOn = False
 
-                print("Inside : Temperature: %0.1fF, Humidity: %0.1f %%, Pressure: %0.1f hPa" % (globals.OutsideFTemperature, globals.inside.humidity, globals.inside.pressure))
-                print("Outside: Temperature: %0.1fF, Humidity: %0.1f %%, Pressure: %0.1f hPa" % (globals.OutsideFTemperature, globals.outside.humidity, globals.outside.pressure))
+                print("Inside : Temperature: %0.1fF, Humidity: %0.1f %%, Pressure: %0.1f hPa" % (insideFTemperature, globals.inside.humidity, globals.inside.pressure))
+                print("Outside: Temperature: %0.1fF, Humidity: %0.1f %%, Pressure: %0.1f hPa" % (OutsideFTemperature, globals.outside.humidity, globals.outside.pressure))
                 print("predicted outside temperature: %0.1f in: %d minutes" % (predictedOutsideTemp, futureInterpolationTime / 60))
                 print("________________________________________")
 
                 #send dweet.io and update on temperature status
                 # dweetContent = {
-                #     "Inside_Temp": round(globals.OutsideFTemperature , 2),
-                #     "Outside_Temp": round(globals.OutsideFTemperature, 2),
-                #     "Inside_Difference": round(globals.OutsideFTemperature - globals.OutsideFTemperature, 2),
+                #     "Inside_Temp": round(insideFTemperature , 2),
+                #     "Outside_Temp": round(OutsideFTemperature, 2),
+                #     "Inside_Difference": round(insideFTemperature - OutsideFTemperature, 2),
                 #     "Inside_Humidity": round(globals.inside.humidity, 1),
                 #     "Outside_Humidity": round(globals.outside.humidity, 1),
                 #     "Inside_Pressure": round(globals.inside.pressure, 1),
@@ -134,13 +130,13 @@ def TestTemperature():
                 influxDBContent = [
                     {"measurement" : "Inside_Temp",
                     "fields":{
-                        "value": round(globals.OutsideFTemperature , 2)}},
+                        "value": round(insideFTemperature , 2)}},
                     {"measurement" : "Outside_Temp",
                     "fields":{
-                        "value": round(globals.OutsideFTemperature , 2)}},
+                        "value": round(OutsideFTemperature , 2)}},
                     {"measurement" : "Inside_Difference",
                     "fields":{
-                        "value": round(globals.OutsideFTemperature - globals.OutsideFTemperature, 2)}},
+                        "value": round(insideFTemperature - OutsideFTemperature, 2)}},
                     {"measurement" : "Inside_Humidity",
                     "fields":{
                         "value": round(globals.inside.humidity , 1)}},
@@ -175,18 +171,16 @@ def TestTemperature():
 
                 time.sleep(300)
 
-    # except (OSError, ValueError) as e:
-    #     PowerReset(e)
-    #     GPIOSetup()
-    #     TestTemperature()
+    except (OSError, ValueError) as e:
+        print("error ", e)
+        PowerReset()
+        GPIOSetup()
+        TestTemperature()
     
     except KeyboardInterrupt:
         GPIO.cleanup()
         SendFanSignal("OFF")
 
-try:
-    GPIOSetup()
-except ValueError as e:
-    PowerReset(e)
 
+TrySensorSetup()
 TestTemperature()
