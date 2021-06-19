@@ -174,7 +174,6 @@ def TestTemperature():
     except (OSError, ValueError) as e:
         print("error ", e)
         PowerReset()
-        GPIOSetup()
         TestTemperature()
     
     except KeyboardInterrupt:
