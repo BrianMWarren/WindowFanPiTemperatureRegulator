@@ -104,7 +104,7 @@ def GetInsideValues(procInside):
     Inside.IAQ_Accuracy = (int(lineDict['IAQ_Accuracy']))
     Inside.Pressure = (float(lineDict['Pressure']))
     Inside.Gas = (int(lineDict['Gas']))
-    Inside.Temperature = (float(lineDict['Temperature'])) * (9/5) + 32
+    Inside.Temperature = ((float(lineDict['Temperature']))) * (9/5) + 32
     Inside.IAQ = (float(lineDict['IAQ']))
     Inside.Humidity = (float(lineDict['Humidity']))
     Inside.Status = (int(lineDict['Status']))
@@ -117,7 +117,7 @@ def GetOutsideValues(procOutside):
     Outside.IAQ_Accuracy = (int(lineDict['IAQ_Accuracy']))
     Outside.Pressure = (float(lineDict['Pressure']))
     Outside.Gas = (int(lineDict['Gas']))
-    Outside.Temperature = (float(lineDict['Temperature'])) * (9/5) + 32
+    Outside.Temperature = ((float(lineDict['Temperature'])) * (9/5)) + 32
     Outside.IAQ = (float(lineDict['IAQ']))
     Outside.Humidity = (float(lineDict['Humidity']))
     Outside.Status = (int(lineDict['Status']))
