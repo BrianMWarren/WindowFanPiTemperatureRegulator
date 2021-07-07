@@ -123,6 +123,7 @@ def GetOutsideValues(procOutside):
     Outside.Status = (int(lineDict['Status']))
 
 def TestTemperature():
+    calibrationAttempts = 0
     try:
         #Open C Files
         procInside = subprocess.Popen(["/home/pi/WindowPiShare/bsec/bsec_bme680_python/bsec_bme680_76"], stdout=subprocess.PIPE)
@@ -131,6 +132,15 @@ def TestTemperature():
         while True:
             GetInsideValues(procInside)
             GetOutsideValues(procOutside)
+
+            while(Outside.IAQ_Accuracy < 2 and Inside.IAQ_Accuracy < 2):
+                GetInsideValues(procInside)
+                GetOutsideValues(procOutside)
+                print("***************calibrating IAQ sensors*******************")
+                print("Inside : Temperature: %0.1fF, Humidity: %0.1f %%, Pressure: %0.1f hPa, Gas: %0.1f ohms, IAQ accuracy: %i, IAQ: %i" % (Inside.Temperature, Inside.Humidity, Inside.Pressure, Inside.Gas, Inside.IAQ_Accuracy, Inside.IAQ))
+                print("Outside: Temperature: %0.1fF, Humidity: %0.1f %%, Pressure: %0.1f hPa, Gas: %0.1f ohms, IAQ accuracy: %i, IAQ: %i" % (Outside.Temperature, Outside.Humidity, Outside.Pressure, Outside.Gas, Outside.IAQ_Accuracy, Outside.IAQ))
+                calibrationAttempts += 1
+                print("Calibration read #%i" % calibrationAttempts)
             if(Inside.Temperature != "" and Outside.Temperature != ""):
 
                 # prediction -----------------
