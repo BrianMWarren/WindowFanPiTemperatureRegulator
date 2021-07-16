@@ -8,6 +8,7 @@ import socket
 import subprocess
 import json
 from dataclasses import dataclass
+from statistics import median
 
 #relay setup
 import RPi.GPIO as GPIO
@@ -36,7 +37,7 @@ class Inside:
     Temperature: float
     IAQ: float
     Humidity: float
-    Status: int
+    Status: float
 
 @dataclass
 class Outside:
@@ -46,7 +47,7 @@ class Outside:
     Temperature: float
     IAQ: float
     Humidity: float
-    Status: int
+    Status: float
 
 class globals():
     previousTemps = {}
@@ -108,6 +109,7 @@ def GetInsideValues(procInside):
     Inside.IAQ = (float(lineDict['IAQ']))
     Inside.Humidity = (float(lineDict['Humidity']))
     Inside.Status = (int(lineDict['Status']))
+    return Inside
 
 def GetOutsideValues(procOutside):
     line = procOutside.stdout.readline()
@@ -121,28 +123,73 @@ def GetOutsideValues(procOutside):
     Outside.IAQ = (float(lineDict['IAQ']))
     Outside.Humidity = (float(lineDict['Humidity']))
     Outside.Status = (int(lineDict['Status']))
+    return Outside
 
 def TestTemperature():
     calibrationAttempts = 0
     try:
         #Open C Files
-        procInside = subprocess.Popen(["/home/pi/WindowPiShare/bsec/bsec_bme680_python/bsec_bme680_76"], stdout=subprocess.PIPE)
-        procOutside = subprocess.Popen(["/home/pi/WindowPiShare/bsec/bsec_bme680_python/bsec_bme680_77"], stdout=subprocess.PIPE)
-
+        procOutside = subprocess.Popen(["/home/pi/WindowPiShare/bsec/bsec_bme680_python_77/bsec_bme680"], cwd="/home/pi/WindowPiShare/bsec/bsec_bme680_python_77/", stdout=subprocess.PIPE)
+        procInside = subprocess.Popen(["/home/pi/WindowPiShare/bsec/bsec_bme680_python_76/bsec_bme680"], cwd="/home/pi/WindowPiShare/bsec/bsec_bme680_python_76/", stdout=subprocess.PIPE)
+        
         while True:
-            GetInsideValues(procInside)
-            GetOutsideValues(procOutside)
+            InsideReadings = []
+            OutsideReadings = []    
+            while(len(OutsideReadings) < 100):
+                InsideReadings.append(GetInsideValues(procInside))
+                OutsideReadings.append(GetOutsideValues(procOutside))
+            
+            #average all readings
+            OutsideIAQ_Accuracy = 0
+            OutsidePressure = 0
+            OutsideGas = 0
+            OutsideTemperature = 0
+            OutsideIAQ = 0
+            OutsideHumidity = 0
+            OutsideStatus = 0
+            
+            InsideIAQ_Accuracy = 0
+            InsidePressure = 0
+            InsideGas = 0
+            InsideTemperature = 0
+            InsideIAQ = 0
+            InsideHumidity = 0
+            InsideStatus = 0
+            for i in range(len(OutsideReadings)):
+                OutsideIAQ_Accuracy += OutsideReadings[i].IAQ_Accuracy
+                OutsidePressure += OutsideReadings[i].Pressure
+                OutsideGas += OutsideReadings[i].Gas
+                OutsideTemperature += OutsideReadings[i].Temperature
+                OutsideIAQ += OutsideReadings[i].IAQ
+                OutsideHumidity += OutsideReadings[i].Humidity
+                OutsideStatus += OutsideReadings[i].Status
 
-            while(Outside.IAQ_Accuracy < 2 and Inside.IAQ_Accuracy < 2):
-                GetInsideValues(procInside)
-                GetOutsideValues(procOutside)
-                print("***************calibrating IAQ sensors*******************")
-                print("Inside : Temperature: %0.1fF, Humidity: %0.1f %%, Pressure: %0.1f hPa, Gas: %0.1f ohms, IAQ accuracy: %i, IAQ: %i" % (Inside.Temperature, Inside.Humidity, Inside.Pressure, Inside.Gas, Inside.IAQ_Accuracy, Inside.IAQ))
-                print("Outside: Temperature: %0.1fF, Humidity: %0.1f %%, Pressure: %0.1f hPa, Gas: %0.1f ohms, IAQ accuracy: %i, IAQ: %i" % (Outside.Temperature, Outside.Humidity, Outside.Pressure, Outside.Gas, Outside.IAQ_Accuracy, Outside.IAQ))
-                calibrationAttempts += 1
-                print("Calibration read #%i" % calibrationAttempts)
+                InsideIAQ_Accuracy += InsideReadings[i].IAQ_Accuracy
+                InsidePressure += InsideReadings[i].Pressure
+                InsideGas += InsideReadings[i].Gas 
+                InsideTemperature += InsideReadings[i].Temperature
+                InsideIAQ += InsideReadings[i].IAQ
+                InsideHumidity += InsideReadings[i].Humidity
+                InsideStatus += InsideReadings[i].Status
+
+            Outside.IAQ_Accuracy = OutsideIAQ_Accuracy / len(OutsideReadings)
+            Outside.Pressure = OutsidePressure / len(OutsideReadings)
+            Outside.Gas = OutsideGas / len(OutsideReadings)
+            Outside.Temperature = OutsideTemperature / len(OutsideReadings)
+            Outside.IAQ = OutsideIAQ / len(OutsideReadings)
+            Outside.Humidity = OutsideHumidity / len(OutsideReadings)
+            Outside.Status = OutsideStatus / len(OutsideReadings)
+
+            Inside.IAQ_Accuracy = InsideIAQ_Accuracy / len(InsideReadings)
+            Inside.Pressure = InsidePressure / len(InsideReadings)
+            Inside.Gas = InsideGas / len(InsideReadings)
+            Inside.Temperature = InsideTemperature / len(InsideReadings)
+            Inside.IAQ = InsideIAQ / len(InsideReadings)
+            Inside.Humidity = InsideHumidity / len(InsideReadings)
+            Inside.Status = InsideStatus / len(InsideReadings)
+
+
             if(Inside.Temperature != "" and Outside.Temperature != ""):
-
                 # prediction -----------------
                 if(len(globals.previousTemps) > 0):
                     predictedOutsideTemp = LerpTemp(Outside.Temperature)
@@ -212,10 +259,10 @@ def TestTemperature():
                         "value": round(Outside.Pressure, 1)}},
                     {"measurement" : "Inside_IAQ_Accuracy",
                     "fields":{
-                        "value": Inside.IAQ_Accuracy}},
+                        "value": round(Inside.IAQ_Accuracy, 1)}},
                     {"measurement" : "Outside_IAQ_Accuracy",
                     "fields":{
-                        "value": Outside.IAQ_Accuracy}},
+                        "value": round(Outside.IAQ_Accuracy, 1)}},
                     {"measurement" : "Inside_IAQ",
                     "fields":{
                         "value": Inside.IAQ}},
